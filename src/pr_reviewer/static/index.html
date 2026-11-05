@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>PR Reviewer</title>
+<style>
+:root{--bg:#f6f7f4;--ink:#1c2321;--mute:#66716d;--line:#d9ded9;--ok:#1f7a4d;--bad:#b3322b;--skip:#8a6d1a;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#161b19;--ink:#e8ece9;--mute:#98a39e;--line:#2b3430;--ok:#52c08a;--bad:#ef7b73;--skip:#d9b24f;--card:#1e2522}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,serif;padding:2rem 1rem}
+main{max-width:46rem;margin:auto}h1{font-size:1.8rem;margin:0 0 .25rem}p.sub{color:var(--mute);margin:0 0 1.5rem}
+form{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem}
+input{flex:1 1 8rem;padding:.55rem;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;border-radius:4px}
+button{padding:.55rem 1rem;border:0;background:var(--ink);color:var(--bg);font:inherit;border-radius:4px;cursor:pointer}
+:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.ev{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--skip);padding:.8rem 1rem;margin-bottom:.8rem;border-radius:4px}
+.ev.merge{border-left-color:var(--ok)}.ev.reject{border-left-color:var(--bad)}
+.ev b{font-size:1.05rem}.ev small{color:var(--mute)}.ev ul{margin:.4rem 0 0;padding-left:1.2rem;color:var(--mute);font-size:.9rem}
+#mode{font-size:.9rem;padding:.2rem .6rem;border:1px solid var(--line);border-radius:99px}
+</style></head><body><main>
+<h1>PR Reviewer</h1><p class="sub">Checks each pull request against its ticket's acceptance criteria. <span id="mode"></span></p>
+<form id="f"><input name="owner" placeholder="Owner" required><input name="repo" placeholder="Repository" required>
+<input name="number" type="number" placeholder="PR number (or leave empty)"><input name="branch" placeholder="Branch (if no PR number)"><button>Review</button></form>
+<div id="list"><p class="sub">No reviews yet. Open a pull request or review one above.</p></div></main>
+<script>
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function load(){const d=await (await fetch('/api/events')).json();
+mode.textContent=d.dry_run?'Dry run: nothing is changed on GitHub':'Live mode: changes are applied';
+if(d.events.length)list.innerHTML=d.events.map(e=>`<div class="ev ${e.action}"><b>${esc(e.pr)}: ${esc(e.title)}</b><br>
+<small>${e.time} · ${{merge:'Merged',reject:'Blocked',skip:'Not merged'}[e.action]} · ${esc(e.reason)}</small>
+<ul>${e.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div>`).join('')}
+f.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(f));
+const r=await fetch(v.number?'/api/review':'/api/review-commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
+if(!r.ok)alert((await r.json()).detail);setTimeout(load,3000)};
+load();setInterval(load,5000);
+</script></body></html>
